@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>掃碼紀錄 App</title>
+
+<link rel="manifest" href="manifest.json">
+<script src="https://unpkg.com/html5-qrcode"></script>
+
+<style>
+body{
+ margin:0;
+ font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto;
+ background:#0f172a;
+ color:white;
+}
+
+header{
+ text-align:center;
+ padding:16px;
+ font-size:20px;
+ font-weight:600;
+ background:#020617;
+ border-bottom:1px solid #1e293b;
+}
+
+.container{
+ padding:16px;
+}
+
+#reader{
+ width:100%;
+ border-radius:12px;
+ overflow:hidden;
+}
+
+.card{
+ background:#020617;
+ border:1px solid #1e293b;
+ border-radius:14px;
+ padding:14px;
+ margin-top:16px;
+}
+
+button{
+ width:100%;
+ padding:14px;
+ margin-top:10px;
+ border:none;
+ border-radius:10px;
+ font-size:16px;
+ font-weight:600;
+}
+
+.primary{background:#2563eb;color:white}
+.secondary{background:#334155;color:white}
+.danger{background:#dc2626;color:white}
+
+.stats{
+ display:flex;
+ justify-content:space-between;
+ margin-top:10px;
+ font-size:14px;
+ color:#94a3b8;
+}
+
+.list{
+ margin-top:12px;
+ max-height:250px;
+ overflow:auto;
+}
+
+.item{
+ border-bottom:1px solid #1e293b;
+ padding:8px 0;
+ font-size:14px;
+}
+
+.code{
+ font-weight:600;
+}
+
+.time{
+ font-size:12px;
+ color:#94a3b8;
+}
+</style>
+</head>
+
+<body>
+
+<header>📷 掃碼紀錄</header>
+
+<div class="container">
+
+<div id="reader"></div>
+
+<div class="card">
+
+<div class="stats">
+<div>掃描數量：<span id="count">0</span></div>
+<div>不同條碼：<span id="unique">0</span></div>
+</div>
+
+<button class="primary" onclick="exportCSV()">匯出 CSV</button>
+<button class="secondary" onclick="toggleList()">顯示 / 隱藏紀錄</button>
+<button class="danger" onclick="clearData()">清空資料</button>
+
+<div class="list" id="list"></div>
+
+</div>
+
+</div>
+
+<script>
+let scans = JSON.parse(localStorage.getItem("scans")||"[]");
+
+function save(){
+ localStorage.setItem("scans",JSON.stringify(scans));
+}
+
+function render(){
+ const list=document.getElementById("list");
+ const count=document.getElementById("count");
+ const unique=document.getElementById("unique");
+
+ list.innerHTML="";
+
+ const codes=new Set();
+
+ scans.slice().reverse().forEach(s=>{
+  codes.add(s.code);
+
+  const div=document.createElement("div");
+  div.className="item";
+  div.innerHTML=`<div class='code'>${s.code}</div><div class='time'>${s.time}</div>`;
+
+  list.appendChild(div);
+ });
+
+ count.textContent=scans.length;
+ unique.textContent=codes.size;
+}
+
+function addScan(code){
+ const time=new Date().toLocaleString();
+
+ scans.push({code,time});
+
+ save();
+ render();
+
+ navigator.vibrate?.(80);
+}
+
+function exportCSV(){
+ let csv="Barcode,Time\n";
+
+ scans.forEach(s=>{
+  csv+=`${s.code},${s.time}\n`;
+ });
+
+ const blob=new Blob([csv],{type:"text/csv"});
+ const url=URL.createObjectURL(blob);
+
+ const a=document.createElement("a");
+ a.href=url;
+ a.download="scan_record.csv";
+ a.click();
+}
+
+function clearData(){
+ if(!confirm("確定清空所有掃描資料？")) return;
+
+ scans=[];
+ save();
+ render();
+}
+
+function toggleList(){
+ const list=document.getElementById("list");
+ list.style.display=list.style.display==="none"?"block":"none";
+}
+
+function onScanSuccess(text){
+ addScan(text);
+}
+
+const qr = new Html5Qrcode("reader");
+
+Html5Qrcode.getCameras().then(devices=>{
+ if(devices.length){
+  qr.start(
+   {facingMode:"environment"},
+   {fps:10,qrbox:250},
+   onScanSuccess
+  );
+ }
+});
+
+render();
+</script>
+
+</body>
+</html>
