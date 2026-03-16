@@ -183,7 +183,17 @@ function toggleList(){
  list.style.display=list.style.display==="none"?"block":"none";
 }
 
+let lastScanTime = 0;
+const scanInterval = 2000; // 2秒內不重複讀取
+
 function onScanSuccess(text){
+ const now = Date.now();
+
+ if(now - lastScanTime < scanInterval){
+  return; // 忽略過快的重複掃描
+ }
+
+ lastScanTime = now;
  addScan(text);
 }
 
